@@ -1,0 +1,513 @@
+---
+title: "FinalProj"
+author: "Vidya Sankaran"
+date: "10 February 2018"
+output: html_document
+---
+
+## Text Mining - with R
+
+This project is about exploring text mining package tm in R.  Simple application for Text mining like predicting words for given word is tried out in this application.
+
+###Required Packages
+  -  Tm 
+  -  ggplot
+  -  Stringr
+  -  stringi
+  -  wordcloud, RColorBrewer
+  -  Rweka
+  -  ngram
+  -  SnowballC
+  
+Install packages as per the requirement and libraries are loaded.
+
+### DataSet 
+  The dataset used in this package is downloaded from coursera website. 
+  
+### Summary of Application
+  This application perform simple operations on the data downloaded and create a text
+  dataframe using text mining package.  This data set shall be used for predicting the texts.
+  
+  The exploration and creation of dataset from scratch has been done in this
+  applicaiton. 
+
+```{r }
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(devtools)
+library(plotly)
+library(caret)
+library(stringi)
+require(stringi)
+library(tm)
+library(RWeka)
+library(RWekajars)
+library(RColorBrewer)
+library(stringr)
+library(ngram)
+library(wordcloud)
+library(SnowballC)
+library(ngram)
+library(stringr)
+library(NLP)
+
+
+```
+## Downloading Data Set:
+
+Downloading data set from coursera sites.
+
+```{r}
+
+file_path <- "./final/en_US/"
+
+if (file.exists("./final/en_US/en_US.blogs.txt")== FALSE){
+  download.file("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip", destfile="./Coursera-SwiftKey.zip")
+  unzip("Coursera-SwiftKey.zip")
+  
+}
+```
+# Reading Dataset:
+
+There files are provided as training datset and we need to calculate the size of the
+training set provided. Due to RAM constraint for processing the data, a strategy should be identified based on the size of the training set. 
+
+```{r}
+file_path <- "./final/en_US/"
+con <-  file(paste0(file_path, "en_US.blogs.txt"),"rt", blocking=FALSE)
+blogs <- readLines(con, encoding="UTF-8")
+close(con)
+#unique(Encoding(blogs))
+
+con <-file(paste0(file_path, "en_US.twitter.txt"),"rt", blocking=FALSE)
+TL <- readLines(con, encoding="UTF-8")
+close(con)
+#unique(Encoding(TL))
+
+con <-file(paste0(file_path, "en_US.news.txt"),"rt", blocking=FALSE)
+news <- readLines(con, encoding="UTF-8")
+close(con)
+#unique(Encoding(news))
+
+
+```
+```{r, echo= FALSE, eval=FALSE}
+love_val <- 0
+hate_val <- 0
+count <- 0
+
+for (i in 1:length(TL)) {
+  
+ 
+ 
+  if (grepl("biostats", TL[i]) ){
+        print (TL[i])
+  }
+  
+   if ( grepl("love", TL[i] )) {
+      love_val <- love_val + 1
+   }
+  
+   if ( grepl("hate", TL[i] )) {
+      hate_val <- hate_val + 1
+   }
+ 
+  if (grepl("A computer once beat me at chess, but it was no match for me at kickboxing", TL[i])) {
+      count <- count+1
+  }
+
+}
+
+x <- love_val/hate_val
+
+rm(love_val)
+rm(hate_val)
+rm(count)
+rm(x)
+rm(i)
+
+
+```
+
+
+
+## Testing on Data Set
+
+Peformed simple operations like
+1.  TextLength  - Length of text files read from the text files
+2.  WordCount   -  Counting no of words in the text files
+3.  CharacterCount - no of characters in the text files provided
+
+This data helps to quantify the RAM size, required to perform the operation.
+
+```{r }
+j= 1
+
+char_lengths <- numeric()
+char_lengths_tw <- numeric()
+char_lengths_n <- numeric()
+
+WC <- data.frame("TextType"=c("Blogs", "Twits", "News"), 
+                 "WordCount"= c(0,0,0), "TextLength"=c(0,0,0))
+
+WC$TextLength[j] <- length(blogs)
+
+for (i in 1:length(blogs)){
+ char_lengths[i] <- nchar(blogs[i])
+ WC$WordCount[j] <- WC$WordCount[j]+wordcount(blogs[i])
+}
+
+j <- j+1
+WC$TextLength[j] <- length(TL)
+
+for (i in 1:length(TL)){
+ char_lengths_tw[i] <- nchar(TL[i])
+ WC$WordCount[j] <- WC$WordCount[j]+wordcount(TL[i])
+}
+j <- j+1
+
+WC$TextLength[j] <- length(news)
+
+for (i in 1:length(news)){
+ #word_lengths_n[i] <-  stri_count(news[i], regex="\\s+")
+  char_lengths_n[i] <- nchar(news[i])
+  WC$WordCount[j] <- WC$WordCount[j]+wordcount(news[i])
+}
+
+ggplot(WC, aes(x=TextType, y= WordCount, fill= factor(TextType)))+ 
+  geom_bar(stat="identity", position="identity", color="blue")+ ggtitle("Word Count Information of Training Set")
+
+
+ggplot(WC, aes(x=TextType, y=TextLength, fill=factor(TextType)))+ geom_col()+ ggtitle("Text Length Count of documents List")
+
+hist(char_lengths_tw, main="Total No of Characters in each Tweets", col="brown")
+hist(char_lengths_n,  main="Total No of Characters in each News", col="brown")
+hist(char_lengths,  main="Total No of Characters in each Blogs", col="brown")
+
+rm(char_lengths)
+rm(char_lengths_n)
+rm(char_lengths_tw)
+rm(WC)
+rm(j)
+
+```
+
+## Data Cleaning and data table creation:
+
+As the data provided is too big, I have sampled  the text files using rbinorm function and picked out the sample texts for creating the data set.  I have just randomised and kept the no of text lines read from each file as 5000. We can increase or decrease this random sample by changing the following variable: sample_txt_size.
+
+After data extracted and checked, we need to convert ASCII translation to remove symbol characters in the file. stringr package is used for this purpose. ngram package for counting the word counts in the text files.
+
+```{r}
+
+
+# Now sample few lines from each docs and make a vector source
+set.seed(1425)
+
+myclean <- function(docs){
+  for (i in 1:length(docs)){
+    docs[i] <- iconv(docs[i], to = "ASCII//TRANSLIT")  
+    docs[i] <- gsub( "[[:punct:]]", " ", docs[i])
+    docs[i] <- gsub( "[[:graph:]]", " ", docs[i])
+    docs[i] <- gsub( "[[:cntrl:]]", " ", docs[i])
+    docs[i] <- gsub( "[^[:alnum:]]", " ", docs[i])
+    docs[i] <- gsub("[^[:alnum:][:space:]\']", "",docs[i])
+    docs[i] <- gsub("^[ ]{1,10}", "",docs[i])
+    docs[i] <- gsub("[ ]{2,10}", "",docs[i])
+    docs[i] <- gsub("€", "", docs[i])
+    docs[i] <- gsub("Ã", "", docs[i], fixed=TRUE)
+    docs[i] <- gsub("â", "", docs[i], fixed=TRUE)
+    docs[i] <- gsub("€", "", docs[i], fixed=TRUE)
+    docs[i] <- gsub("™", "", docs[i], fixed=TRUE)
+    docs[i] <- gsub("â€œ", "", docs[i], fixed=TRUE)
+  #  docs[i] <- iconv(docs[i], to = "ASCII//TRANSLIT")
+    docs[i] <- iconv(docs[i], 'UTF-8', 'ASCII')
+    eval.parent(docs[i]<- docs[i])
+  }  
+}
+
+sampletextInput <- function (txtlist, sample_len) {
+
+    #pick randomlines using rbinorm function.
+    txtLen <-  length(txtlist)
+    index <- rbinom(n=sample_len, size=txtLen, p=0.8)
+    return (txtlist[index])
+}
+sample_txt_size <- 5000
+s_blogs <- sampletextInput(blogs, sample_txt_size)
+s_twits <- sampletextInput(TL, sample_txt_size)
+s_news <- sampletextInput(news, sample_txt_size)
+
+myclean(s_blogs)
+
+# Sample Size taken for analysis
+wordcount(s_blogs)
+#nchar(docs)
+length(s_blogs)
+
+con <-  file("./en_US1/sample.txt","w", blocking=FALSE)
+writeLines(as.character(s_blogs), con)
+close(con)
+
+
+#vs <- VectorSource(docs)
+vs_blogs <- VectorSource(s_blogs)
+vs_tw  <-  VectorSource(s_twits)
+vs_nw  <-  VectorSource(s_news)
+#dir_val <- DirSource("./en_US1", mode="text", encoding="UTF-8")
+
+#read_val <- Corpus(vs,  
+ #             readerControl = list(reader = readPlain,  language = "en",  load = TRUE))
+
+
+```
+
+## Data Set Creation Continued:
+
+Using tm package, the data set is cleaned and a data frame is created. The list of repeated words identified from the data set, and a word cloud is presented. The frequent words list
+prepared and the graphs are shown. 
+
+
+```{r, message=FALSE}
+## Using tm package and converting them to TermDocument matrix
+
+getCorpusUnigramTDM <- function() {
+
+  read_val <- Corpus(vs_blogs,  
+              readerControl = list(reader = readPlain,  language = "en",  load = TRUE))
+  toSpace <- content_transformer(function(x, pattern) {return (gsub(pattern," ",
+x))})
+  
+  read_val<- tm_map(read_val,toSpace,"[^[:graph:]]")
+
+  #read_val <- tm_map(read_val, function(x) iconv(x, to='UTF-8', sub='byte'))
+  read_val <- tm_map(read_val, removePunctuation)
+  read_val <- tm_map(read_val, removeNumbers)
+  
+  read_val <- tm_map(read_val, removeWords, stopwords("english"))
+  read_val <- tm_map(read_val, stripWhitespace)
+  read_val <- tm_map(read_val, content_transformer(tolower))
+  read_val <- tm_map(read_val, stemDocument)
+  #read_val <- tm_map(read_val, PlainTextDocument)
+  readTDM <- TermDocumentMatrix(read_val)
+
+  #readTDM <- removeSparseTerms(readTDM, 0.8)
+  #inspect(readTDM)
+  return (readTDM)
+
+}
+
+
+
+getCorpusNgramTDM <- function(y=2){
+  
+  if(!(y == 2 | y==3 )) return (NULL)
+  
+  read_val <- VCorpus(vs_blogs)
+  read_val <- tm_map(read_val, removePunctuation)
+  read_val <- tm_map(read_val, removeNumbers)
+  read_val <- tm_map(read_val, stripWhitespace)
+  read_val <- tm_map(read_val, content_transformer(tolower))
+  read_val <- tm_map(read_val, PlainTextDocument)
+  read_val <- tm_map(read_val, stemDocument, language="english")
+ # corpusresult<-data.frame(text=unlist(sapply(read_val,'[',"content")),
+#                           stringsAsFactors = FALSE)
+#  head(corpusresult)
+  
+
+  if (y== 2) {
+    Ngram<-function(x) NGramTokenizer(x,Weka_control(min=2,max=2))
+  } 
+  if (y==3) {
+    Ngram<-function(x) NGramTokenizer(x,Weka_control(min=3,max=3))
+  }
+ 
+  Ngramtab<-TermDocumentMatrix(read_val,control=list(tokenize=Ngram))
+  Ngramcorpus<-findFreqTerms(Ngramtab,lowfreq=100)
+  Ngramcorpusnum<-rowSums(as.matrix(Ngramtab[Ngramcorpus,]))
+  Ngramcorpustab<-data.frame(Word=names(Ngramcorpusnum),frequency=Ngramcorpusnum)
+  Ngramcorpussort<-Ngramcorpustab[order(-Ngramcorpustab$frequency),]
+  head(Ngramcorpussort, n=10)
+  
+ # return(Ngramcorpussort)
+  return (Ngramtab)
+}
+
+
+TDM <- getCorpusUnigramTDM()
+TDM <- removeSparseTerms(TDM, 0.99)
+inspect(TDM)
+
+DocMat <- as.matrix(TDM)
+v <- sort(rowSums(DocMat),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, n=20)
+
+
+t <-as.data.frame(head(d, n=20))
+
+t$word <- factor(t$word, levels=t$word[order(t$freq, decreasing =TRUE) ])
+#Plotting first 20 high frequency words
+ggplot(t, aes(x=(word), y=freq))+geom_bar(stat = "identity")+
+  ggtitle("Word Frequencies of Top 20 Words")
+
+#findAssocs(readTDM, c("student", "academi", "builder", "colours", "problems", "towel", "toilet", "damage", "bathroom"), 0.7)
+
+
+
+set.seed(1234)
+wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=75, random.order=FALSE,scale=c(4,0.2), rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+
+rm(v)
+rm(d)
+rm(TDM)
+rm(DocMat)
+```
+
+## Summary:
+
+This helps to create a data frame, for futher application creation, which will be helping to train the model for prediction.
+
+
+```{r,}
+
+unigram.tdm <- getCorpusUnigramTDM()
+
+DocMat <- as.matrix(unigram.tdm)
+
+v <- sort(rowSums(DocMat),decreasing=TRUE)
+d <- data.frame(word =names(v),freq=v)
+head(d, n=20)
+
+rownames(d) <- 1: nrow(d)
+
+
+write.csv(d, file=paste0(file_path, "unigram.csv", sep=" "))
+rm(v)
+rm(d)
+rm(DocMat)
+rm(unigram.tdm)
+
+
+bigram.tdm <- getCorpusNgramTDM(2)
+
+DocMat <- as.matrix(bigram.tdm)
+
+v <- sort(rowSums(DocMat),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, n=20)
+
+rownames(d) <- 1: nrow(d)
+
+
+write.csv(d, file=paste0(file_path, "bigram.csv", sep=" "))
+rm(v)
+rm(d)
+rm(DocMat)
+rm(bigram.tdm)
+
+
+trigram.tdm <- getCorpusNgramTDM(3)
+
+DocMat <- as.matrix(trigram.tdm)
+
+v <- sort(rowSums(DocMat),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, n=20)
+
+rownames(d) <- 1: nrow(d)
+
+
+write.csv(d, file=paste0(file_path, "trigram.csv", sep=" "))
+
+rm(v)
+rm(d)
+rm(DocMat)
+rm(trigram.tdm)
+
+
+
+inputclean <- function(inptxt){
+  if (wordcount(inptxt)>= 3){
+    print("Words exceeding the limit, Kindly give words less than or equal to 3 in the text")
+    return (NULL)
+  }
+  if (grepl("\\*", inptxt)){
+    print("Text contains asterik, which reg exp functionaly can't be used, removing asterik")
+    inptxt <- gsub("\\*", "", inptxt )
+
+  }
+  if (grepl("[[:punct:]]", inptxt)) {
+    print( "Punctionations shall be removed and the generic text alone shall be considered")
+  
+    inptxt <- gsub("[[:punct:]]", "", inptxt )
+  }
+  if (grepl("[[:digit:]]", inptxt)) {
+    print( "Digits shall be removed and the generic text alone shall be considered")
+    inptxt <- gsub("[[:digit:]]", "", inptxt )
+ 
+  }
+  return (inptxt)
+  
+}
+
+generic_list_en <- c("a", "and", "on", "the", "of", "an", "be", "")
+          
+
+predict_ngram <- function(text) {
+  
+ inptxt <- text  
+ text <- inputclean(text)
+ if (is.null(text)){
+   return (NULL)
+ }
+  if (wordcount(text) == 1){
+    #check in Bigram table
+    readtable <- read.csv(paste0(file_path, "bigram.csv"))[, -1]
+    if( grepl("\\*", inptxt)){
+      print(text)
+      readtable <- read.csv(paste0(file_path, "unigram.csv"))[, -1]
+    }
+  }
+  if (wordcount(text)== 2){
+    #check in trigram table
+    splitword <- strsplit(inptxt, " ")
+    firstword <- splitword[[1]][1]
+    secondword <- splitword[[1]][2]
+    if (grepl("\\*",firstword)){
+      print("in split word")
+      readtable <- read.csv(paste0(file_path, "unigram.csv"))[, -1]
+      text <- strsplit(text, " ")[[1]][1]
+      print(text)
+    }
+    else if ( grepl("\\*", secondword)){
+      readtable <- read.csv(paste0(file_path, "bigram.csv"))[, -1]
+      text <- strsplit(text, " ")[[1]][2]
+    }
+    else {
+      readtable <- read.csv(paste0(file_path, "trigram.csv"))[, -1]
+    }
+  }
+  x <- grep(paste0("^",text),readtable$word)
+
+  pred_word <- readtable[x,]
+  if (nrow(pred_word) == 0){
+      return (NULL)
+  }
+  return (head(pred_word, n=10))
+}
+
+ptext <- predict_ngram("state of")
+
+if(is.null(ptext)){
+  print("No valid match found for the given input")
+}
+
+ptext
+
+  
+```
+
