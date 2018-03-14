@@ -22,7 +22,7 @@ shinyUI(fluidPage(
       selectInput("text_type", label = "Type of Text:",
                   choices = c("blogs", "news", "tweets"), selected = "blogs"),
       sliderInput("samp_size", label = "Sample Size of text lines:",
-                  min = 500, max = 1000, value = 1000, step = 50),
+                  min = 500, max = 2000, value = 1000, step = 50),
       textInput("inptext", label="Text to be Predicted for:", value="wor*"),
       submitButton(text="Done")
     ),
