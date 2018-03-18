@@ -29,33 +29,33 @@ library(NLP)
 library(shiny)
 
 # file download
-#file_path <- "final/en_US/"
+#file_path <- "./final/en_US/"
 
 #if (file.exists("./final/en_US/en_US.blogs.txt")== FALSE){
  # download.file("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip", destfile="Coursera-SwiftKey.zip")
-#  unzip(".Coursera-SwiftKey.zip")
+  #unzip(".Coursera-SwiftKey.zip")
   
 #}
 set.seed(1425)
 
 #reading text files of training set
-#file_path <- "final/en_US/"
+#file_path <- "./final/en_US/"
 file_path <- "./Out/"
 
 file_out_path <- "./Out/"
 
 con <-  file(paste0(file_path, "en_US.blogs.txt"),"rt", blocking=FALSE)
-blogs <- readLines(con, n=2000, encoding="UTF-8")
+blogs <- readLines(con, n=5000, encoding="UTF-8")
 close(con)
 #unique(Encoding(blogs))
 
 con <-file(paste0(file_path, "en_US.twitter.txt"),"rt", blocking=FALSE)
-TL <- readLines(con, n=2000, encoding="UTF-8")
+TL <- readLines(con, n=5000, encoding="UTF-8")
 close(con)
 #unique(Encoding(TL))
 
 con <-file(paste0(file_path, "en_US.news.txt"),"rt", blocking=FALSE)
-news <- readLines(con, n=2000, encoding="UTF-8")
+news <- readLines(con, n=5000, encoding="UTF-8")
 close(con)
 
 words_comp <- 0
@@ -237,7 +237,7 @@ getSource <- function() {
   
   g_Source1 <- getSourceText()
   
-  print(g_Source1)
+  #print(g_Source1)
   
   sample_t <- readSampleText()
 #  print(sample_t)
@@ -271,8 +271,8 @@ getCorpusUnigramTDM <- function() {
   read_val<- tm_map(read_val,toSpace,"[^[:graph:]]")
   read_val <- tm_map(read_val, removePunctuation)
   read_val <- tm_map(read_val, removeNumbers)
-  read_val <- tm_map(read_val, removeWords, stopwords("english"))
   read_val <- tm_map(read_val, stripWhitespace)
+  #read_val <- tm_map(read_val, removeWords, stopwords("english"))
   read_val <- tm_map(read_val, content_transformer(tolower))
   #    read_val <- tm_map(read_val, stemDocument)
   readTDM <- TermDocumentMatrix(read_val)
@@ -327,14 +327,6 @@ getCorpusNgramTDM <- function(y=2){
 
 
 
-
-
-
-
-
-
-
-
 updatePredictedCounter <- function()
 {
   g_w_pr <- getPredictedCount()
@@ -356,13 +348,13 @@ updateCompletedCounter <- function()
 writecsvfile <- function(dataset, fname) {
   
   # print(head(dataset, n=6))
-  print("in writecsv file")
-  print(fname)
+ # print("in writecsv file")
+#  print(fname)
   if (file.exists(fname)== TRUE) {
     file.remove(fname)
   }
-  print(fname)
-  print(head(dataset,n=6))
+#  print(fname)
+ # print(head(dataset,n=6))
   write.csv(dataset, fname)
   
   
@@ -370,132 +362,127 @@ writecsvfile <- function(dataset, fname) {
 
 readcsvfile <- function(fname) {
   
-  print("in read filenames")
-  print (fname)
-  #filedata <- reactiveFileReader(10, NULL, fname, read.csv)
-  #readval <- filedata()[,-1]
   readval <- read.csv(fname, header=TRUE, sep=",")[, -1]
-  print(head(readval, n=6))
+ # print(head(readval, n=6))
   return (readval)
+}
+
+CreateNgrams <-  function() {
+  
+  #print("In createngrams")
+  
+  
+  unigram.tdm <- getCorpusUnigramTDM()
+  
+  DocMat <- as.matrix(unigram.tdm)
+  
+  v <- sort(rowSums(DocMat),decreasing=TRUE)
+  d <- data.frame(word =names(v),freq=v)
+  #print(head(d, n=20))
+  
+  rownames(d) <- 1: nrow(d)
+  
+  fileN <- paste0(file_out_path, "unigram.csv")
+  writecsvfile(d, fileN)
+  
+  rm(v)
+  rm(d)
+  rm(DocMat)
+  rm(unigram.tdm)
+  
+  
+  bigram.tdm <- getCorpusNgramTDM(2)
+  
+  DocMat <- as.matrix(bigram.tdm)
+  
+  v <- sort(rowSums(DocMat),decreasing=TRUE)
+  d <- data.frame(word = names(v),freq=v)
+  #print(head(d, n=20))
+  
+  rownames(d) <- 1: nrow(d)
+  
+  fileN <- paste0(file_out_path, "bigram.csv")
+  writecsvfile(d, fileN)
+  
+  rm(v)
+  rm(d)
+  rm(DocMat)
+  rm(bigram.tdm)
+  
+  
+  trigram.tdm <- getCorpusNgramTDM(3)
+  
+  DocMat <- as.matrix(trigram.tdm)
+  
+  v <- sort(rowSums(DocMat),decreasing=TRUE)
+  d <- data.frame(word = names(v),freq=v)
+  # print(head(d, n=20))
+  
+  rownames(d) <- 1: nrow(d)
+  
+  fileN <- paste0(file_out_path, "trigram.csv")
+  writecsvfile(d, fileN)
+  
+  
+  rm(v)
+  rm(d)
+  rm(DocMat)
+  rm(trigram.tdm)
+  
+  quadgram.tdm <- getCorpusNgramTDM(4)
+  
+  DocMat <- as.matrix(quadgram.tdm)
+  
+  v <- sort(rowSums(DocMat),decreasing=TRUE)
+  d <- data.frame(word = names(v),freq=v)
+  #print(head(d, n=20))
+  
+  rownames(d) <- 1: nrow(d)
+  
+  fileN <- paste0(file_out_path, "quadgram.csv")
+  writecsvfile(d, fileN)
+  
+  
+  rm(v)
+  rm(d)
+  rm(DocMat)
+  rm(quadgram.tdm)
+  
+  
+  pentagram.tdm <- getCorpusNgramTDM(5)
+  
+  DocMat <- as.matrix(pentagram.tdm)
+  
+  v <- sort(rowSums(DocMat),decreasing=TRUE)
+  d <- data.frame(word = names(v),freq=v)
+  #print(head(d, n=20))
+  
+  rownames(d) <- 1: nrow(d)
+  
+  
+  fileN <- paste0(file_out_path, "pentagram.csv")
+  writecsvfile(d, fileN)
+  
+  rm(v)
+  rm(d)
+  rm(DocMat)
+  rm(pentagram.tdm)
+  
 }
 
 
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
-  
 
-  
-  
-  CreateNgrams <-  function() {
-    
-    #print("In createngrams")
-    
-    
-    unigram.tdm <- getCorpusUnigramTDM()
-    
-    DocMat <- as.matrix(unigram.tdm)
-    
-    v <- sort(rowSums(DocMat),decreasing=TRUE)
-    d <- data.frame(word =names(v),freq=v)
-    #print(head(d, n=20))
-    
-    rownames(d) <- 1: nrow(d)
-    
-    fileN <- paste0(file_out_path, "unigram.csv")
-    print(fileN)
-    writecsvfile(d, fileN)
-    
-    rm(v)
-    rm(d)
-    rm(DocMat)
-    rm(unigram.tdm)
-    
-    
-    bigram.tdm <- getCorpusNgramTDM(2)
-    
-    DocMat <- as.matrix(bigram.tdm)
-    
-    v <- sort(rowSums(DocMat),decreasing=TRUE)
-    d <- data.frame(word = names(v),freq=v)
-    #print(head(d, n=20))
-    
-    rownames(d) <- 1: nrow(d)
-    
-    fileN <- paste0(file_out_path, "bigram.csv")
-    writecsvfile(d, fileN)
-    
-    rm(v)
-    rm(d)
-    rm(DocMat)
-    rm(bigram.tdm)
-    
-    
-    trigram.tdm <- getCorpusNgramTDM(3)
-    
-    DocMat <- as.matrix(trigram.tdm)
-    
-    v <- sort(rowSums(DocMat),decreasing=TRUE)
-    d <- data.frame(word = names(v),freq=v)
-    # print(head(d, n=20))
-    
-    rownames(d) <- 1: nrow(d)
-    
-    fileN <- paste0(file_out_path, "trigram.csv")
-    writecsvfile(d, fileN)
-    
-    
-    rm(v)
-    rm(d)
-    rm(DocMat)
-    rm(trigram.tdm)
-    
-    quadgram.tdm <- getCorpusNgramTDM(4)
-    
-    DocMat <- as.matrix(quadgram.tdm)
-    
-    v <- sort(rowSums(DocMat),decreasing=TRUE)
-    d <- data.frame(word = names(v),freq=v)
-    #print(head(d, n=20))
-    
-    rownames(d) <- 1: nrow(d)
-    
-    fileN <- paste0(file_out_path, "quadgram.csv")
-    writecsvfile(d, fileN)
-    
-    
-    rm(v)
-    rm(d)
-    rm(DocMat)
-    rm(quadgram.tdm)
-    
-    
-    pentagram.tdm <- getCorpusNgramTDM(5)
-    
-    DocMat <- as.matrix(pentagram.tdm)
-    
-    v <- sort(rowSums(DocMat),decreasing=TRUE)
-    d <- data.frame(word = names(v),freq=v)
-    #print(head(d, n=20))
-    
-    rownames(d) <- 1: nrow(d)
-    
-    
-    fileN <- paste0(file_out_path, "pentagram.csv")
-    writecsvfile(d, fileN)
-    
-    rm(v)
-    rm(d)
-    rm(DocMat)
-    rm(pentagram.tdm)
-    
-  }
-  
   # function to clean the input 
   inputclean <- function(inptxt){
     
     #removing extra white space
-    inptxt <- gsub("\\s+"," ",inptxt)
+    inptxt <- tolower(inptxt)
+   # inptxt <- gsub("\\s+"," ",inptxt)
+    
+    #print(inptxt)
     
     if (wordcount(inptxt)>= 5){
       output$text2 <- renderPrint({ "Words exceeding the limit, Kindly give words less than or equal to 3 in the text"})
@@ -504,34 +491,53 @@ shinyServer(function(input, output) {
     
     if (grepl("\\*", inptxt)){
       output$text1 <- renderPrint({"Text contains asterik partial regular exp functionality implemented"})
-      inptxt <- gsub("\\*", "", inptxt )
+      inptxt <- gsub("\\*", "", inptxt)
+     # print(inptxt)
       
     }
+    inptxt <- removePunctuation(inptxt,
+                      preserve_intra_word_contractions = FALSE,
+                      preserve_intra_word_dashes = FALSE
+                      )
+    #print("after tm removepunct")
+    #print(inptxt)
+    inptxt <- gsub("[^[:graph:]]", " ", inptxt)
+    #removing extra white space
+    inptxt <- gsub("\\s+"," ",inptxt)
+    
     if (grepl("[[:punct:]]", inptxt)) {
       output$text2 <- renderPrint({"Punctionations shall be removed and the generic text alone shall be considered"})
-      
       inptxt <- gsub("[[:punct:]]", "", inptxt )
       #removing extra white space
-      inptxt <- gsub("\\s+"," ",inptxt)
+      #inptxt <- gsub("\\s+"," ",inptxt)
     }
     if (grepl("[[:digit:]]", inptxt)) {
       output$text2 <- renderPrint({ "Digits shall be removed, and the generic text alone shall be considered"})
       inptxt <- gsub("[[:digit:]]", "", inptxt )
-      #removing extra white space
+    
       inptxt <- gsub("\\s+"," ",inptxt)
-      #inptxt <- gsub("[^[:alnum:][:space:]\']", "",inptxt)
+      inptxt <- gsub("[^[:alnum:][:space:]\']", "",inptxt)
       
       
     }
    
+    inptxt <- trimws(inptxt)
+    #print("after white space removal")
+    #print(inptxt)
     return (inptxt)
     
   }
-  
   # predict function to predict the text
-  predict_ngram <- function(size, text, source="blogs", pred_text) {
+  predict_ngram <- function(size, text, source="blogs") {
  
-    inptxt <- tolower(pred_text)  
+    inptxt <- tolower(text)  
+    #print(text)
+    text <- inputclean(text)
+    if (is.null(text)){
+      
+      return (NULL)
+    }
+    
     values <- reactiveValues(readtable=NULL)
     readUnigram <- reactive({
       fname <- paste0(file_out_path, "unigram.csv")
@@ -678,14 +684,10 @@ shinyServer(function(input, output) {
     currentNgrams()
     
     
-    clean_text <- inputclean(input$inptext)
-    if (is.null(text)){
-      
-      return (NULL)
-    }
+    
     
     currentObs <- reactive({
-        ptext <- predict_ngram(input$samp_size, clean_text, input$text_type,input$inptext)
+        ptext <- predict_ngram(input$samp_size, input$inptext, input$text_type)
     })
     ptext <- currentObs()
 
@@ -703,16 +705,16 @@ shinyServer(function(input, output) {
   
     
   
-      words_pred <- getPredictedCount()
-      words_comp <- getCompletedCount()
-      word_stats <- data.frame("WordsPredicted"=words_pred, "WordsCompleted"=words_comp)
-      output$Out_Table2 <- renderTable({word_stats })
-     
+    words_pred <- getPredictedCount()
+    words_comp <- getCompletedCount()
+    word_stats <- data.frame("WordsPredicted"=words_pred, "WordsCompleted"=words_comp)
+    output$Out_Table2 <- renderTable({word_stats })
    
-       ggplot(t, aes(x=(word), y=freq))+geom_bar(stat = "identity")+
-          ggtitle("Predicted words with frequency")+
-          theme(axis.text.x=element_text(angle=90,hjust=1))
-      
+ 
+     ggplot(t, aes(x=(word), y=freq))+geom_bar(stat = "identity")+
+        ggtitle("Predicted words with frequency")+
+        theme(axis.text.x=element_text(angle=90,hjust=1))
+    
   })
  
   
