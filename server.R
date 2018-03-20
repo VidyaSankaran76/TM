@@ -36,6 +36,7 @@ library(shiny)
   #unzip(".Coursera-SwiftKey.zip")
   
 #}
+#memory.limit(size=56000)
 set.seed(1425)
 
 #reading text files of training set
@@ -45,17 +46,17 @@ file_path <- "./Out/"
 file_out_path <- "./Out/"
 
 con <-  file(paste0(file_path, "en_US.blogs.txt"),"rt", blocking=FALSE)
-blogs <- readLines(con, n=5000, encoding="UTF-8")
+blogs <- readLines(con, n=-1L, encoding="UTF-8")
 close(con)
 #unique(Encoding(blogs))
 
 con <-file(paste0(file_path, "en_US.twitter.txt"),"rt", blocking=FALSE)
-TL <- readLines(con, n=5000, encoding="UTF-8")
+TL <- readLines(con, n=-1L, encoding="UTF-8")
 close(con)
 #unique(Encoding(TL))
 
 con <-file(paste0(file_path, "en_US.news.txt"),"rt", blocking=FALSE)
-news <- readLines(con, n=5000, encoding="UTF-8")
+news <- readLines(con, n=-1L, encoding="UTF-8")
 close(con)
 
 words_comp <- 0
@@ -123,13 +124,7 @@ getTextSampleSize <- function(){
   return (g_s_txt_size)
 }
 
-# samp_size
-sample_txt_size <- 0
-setTextSampleSize(sample_txt_size)
 
-setSourceText("none")
-
-g_Source <- getSourceText()
 
 myclean <- function(docs){
   #print(length(docs))
@@ -188,46 +183,59 @@ readSampleText <- function() {
 
 
 # write the sampled data in to file for reading
-setSource <- function (s_txt_size=1000, source="blogs") {
+setSource <- function (source="blogs") {
   
-  if ((file.exists(paste0(file_out_path,"source.txt"))== TRUE) && 
-      (file.exists(paste0(file_out_path,"samp_size.txt"))== TRUE)){
+  #if ((file.exists(paste0(file_out_path,"source.txt"))== TRUE) && 
+  #    (file.exists(paste0(file_out_path,"samp_size.txt"))== TRUE)){
+    
+ #   g_Source <- getSourceText()
+  #  g_s_txt_size <- getTextSampleSize()
+
+ # }
+  
+  if (file.exists(paste0(file_out_path,"source.txt"))== TRUE) {
     
     g_Source <- getSourceText()
-    g_s_txt_size <- getTextSampleSize()
-
+    #  g_s_txt_size <- getTextSampleSize()
+    
   }
+
+#  print ("Source Value")
+ # print(source)
   
-
-
+ # print("g_Source Value")
+ # print (g_Source)
   
-  if( ((g_Source != source) == TRUE) || ((g_s_txt_size != s_txt_size)== TRUE)){
-
+#  if( ((g_Source != source) == TRUE) || ((g_s_txt_size != s_txt_size)== TRUE)){
+  if ( (g_Source != source) == TRUE){
     if (source == "news" ){
-      s_text <- sampletextInput(news, s_txt_size)
+      #s_text <- news
       g_Source <- "news"
  
       
     }
     else if (source == "tweets"){
-      s_text <- sampletextInput(TL, s_txt_size)
+      #s_text <- TL
       g_Source <- "tweets"
   
 
     }
     else {
-      s_text <- sampletextInput(blogs, s_txt_size)
+      #s_text <- blogs
       g_Source <- "blogs"
  
     } 
 
-    writeSampleText(s_text)
+    #writeSampleText(s_text)
     setSourceText(g_Source)
-    setTextSampleSize(s_txt_size)
+   # setTextSampleSize(s_txt_size)
     
+    return (TRUE)
     
   }
-  
+
+  return (FALSE)
+
 }
 
 
@@ -237,15 +245,29 @@ getSource <- function() {
   
   g_Source1 <- getSourceText()
   
-  #print(g_Source1)
+ # print(g_Source1)
   
-  sample_t <- readSampleText()
+  #sample_t <- readSampleText()
+  
+  if (g_Source1 == "news")
+  {
+    sample_t <- news
+    
+  }else if (g_Source1 == "tweets")
+  {
+    sample_t <- TL
+    
+  }else {
+    sample_t <- blogs
+  }
+ 
 #  print(sample_t)
   
-  myclean(sample_t)
+ 
   # Sample Size taken for analysis
-  wordcount(sample_t)
-  length(sample_t)
+  #wordcount(sample_t)
+  #print(wordcount(sample_t))
+  #length(sample_t)
   vs <-  VectorSource(sample_t)
   return (vs)
   
@@ -253,15 +275,11 @@ getSource <- function() {
 
 
 # make unigrams from the sample source
-getCorpusUnigramTDM <- function() {
+getCorpusUnigramTDM <- function(vs) {
   
-  currentGetSource <- reactive ({
-    vs <-  getSource()  
-    return (vs)
-    
-  })
   
-  vs <- currentGetSource()
+  
+  #vs <- VectorSource(blogs)
   
   read_val <- Corpus(vs,  
                      readerControl = list(reader = readPlain,  language = "en",  load = TRUE))
@@ -283,15 +301,9 @@ getCorpusUnigramTDM <- function() {
 
 
 # Make bigrams or trigrams from the source
-getCorpusNgramTDM <- function(y=2){
+getCorpusNgramTDM <- function(vs, y=2){
   
-  currentGetSource <- reactive ({
-    vs <-  getSource()  
-    return (vs)
-    
-  })
-  
-  vs <- currentGetSource()
+
   
   if(!(y == 2 || y==3  || y==4|| y==5)){return (NULL)}
   
@@ -347,9 +359,9 @@ updateCompletedCounter <- function()
 
 writecsvfile <- function(dataset, fname) {
   
-  # print(head(dataset, n=6))
+#  print(head(dataset, n=6))
  # print("in writecsv file")
-#  print(fname)
+ # print(fname)
   if (file.exists(fname)== TRUE) {
     file.remove(fname)
   }
@@ -371,16 +383,32 @@ CreateNgrams <-  function() {
   
   #print("In createngrams")
   
+  currentGetSource <- reactive ({
+    vs <-  getSource()  
+    return (vs)
+    
+  })
   
-  unigram.tdm <- getCorpusUnigramTDM()
   
-  DocMat <- as.matrix(unigram.tdm)
+  vs <-currentGetSource()
+
   
-  v <- sort(rowSums(DocMat),decreasing=TRUE)
-  d <- data.frame(word =names(v),freq=v)
+  
+  unigram.tdm <- getCorpusUnigramTDM(vs)
+  
+  #print(unigram.tdm$ncol)
+  #print(unigram.tdm$nrow)
+  
+  DocMat <- (unigram.tdm$dimnames$Terms)
+  
+ # print(length(DocMat))
+  v <- rep(1, length(DocMat) )
+  
+  #v <- sort(summary(DocMat),decreasing=TRUE)
+  d <- data.frame(word = DocMat,freq=v)
   #print(head(d, n=20))
   
-  rownames(d) <- 1: nrow(d)
+  #rownames(d) <- 1: nrow(d)
   
   fileN <- paste0(file_out_path, "unigram.csv")
   writecsvfile(d, fileN)
@@ -391,16 +419,24 @@ CreateNgrams <-  function() {
   rm(unigram.tdm)
   
   
-  bigram.tdm <- getCorpusNgramTDM(2)
+  bigram.tdm <- getCorpusNgramTDM(vs,2)
   
-  DocMat <- as.matrix(bigram.tdm)
   
-  v <- sort(rowSums(DocMat),decreasing=TRUE)
-  d <- data.frame(word = names(v),freq=v)
+  DocMat <- (bigram.tdm$dimnames$Terms)
+  
+  #print(length(DocMat))
+  v <- rep(1, length(DocMat) )
+  d <- data.frame(word = DocMat,freq=v)
+  
+  
+  #DocMat <- as.factor(as.matrix(bigram.tdm$dimnames$Terms))
+  
+  #v <- sort(summary(DocMat),decreasing=TRUE)
+  #d <- data.frame(word = names(v),freq=v)
   #print(head(d, n=20))
   
   rownames(d) <- 1: nrow(d)
-  
+
   fileN <- paste0(file_out_path, "bigram.csv")
   writecsvfile(d, fileN)
   
@@ -410,12 +446,17 @@ CreateNgrams <-  function() {
   rm(bigram.tdm)
   
   
-  trigram.tdm <- getCorpusNgramTDM(3)
+  trigram.tdm <- getCorpusNgramTDM(vs, 3)
+  DocMat <- (trigram.tdm$dimnames$Terms)
   
-  DocMat <- as.matrix(trigram.tdm)
+  #print(length(DocMat))
+  v <- rep(1, length(DocMat) )
+  d <- data.frame(word = DocMat,freq=v)
   
-  v <- sort(rowSums(DocMat),decreasing=TRUE)
-  d <- data.frame(word = names(v),freq=v)
+  #DocMat <- as.factor(as.matrix(trigram.tdm$dimnames$Terms))
+  
+  #v <- sort(summary(DocMat),decreasing=TRUE)
+  #d <- data.frame(word = names(v),freq=v)
   # print(head(d, n=20))
   
   rownames(d) <- 1: nrow(d)
@@ -429,15 +470,21 @@ CreateNgrams <-  function() {
   rm(DocMat)
   rm(trigram.tdm)
   
-  quadgram.tdm <- getCorpusNgramTDM(4)
+  quadgram.tdm <- getCorpusNgramTDM(vs, 4)
   
-  DocMat <- as.matrix(quadgram.tdm)
+  DocMat <- (quadgram.tdm$dimnames$Terms)
   
-  v <- sort(rowSums(DocMat),decreasing=TRUE)
-  d <- data.frame(word = names(v),freq=v)
+  #print(length(DocMat))
+  v <- rep(1, length(DocMat) )
+  d <- data.frame(word = DocMat,freq=v)
+  
+  #DocMat <- as.factor(as.matrix(quadgram.tdm$dimnames$Terms))
+  
+  #v <- data.frame((sort(summary(DocMat),decreasing=TRUE)))
+  #d <- data.frame(word = rownames(v),freq=v)
   #print(head(d, n=20))
   
-  rownames(d) <- 1: nrow(d)
+  #rownames(d) <- 1: nrow(d)
   
   fileN <- paste0(file_out_path, "quadgram.csv")
   writecsvfile(d, fileN)
@@ -449,12 +496,18 @@ CreateNgrams <-  function() {
   rm(quadgram.tdm)
   
   
-  pentagram.tdm <- getCorpusNgramTDM(5)
+  pentagram.tdm <- getCorpusNgramTDM(vs,5)
   
-  DocMat <- as.matrix(pentagram.tdm)
+  DocMat <- (pentagram.tdm$dimnames$Terms)
   
-  v <- sort(rowSums(DocMat),decreasing=TRUE)
-  d <- data.frame(word = names(v),freq=v)
+  #print(length(DocMat))
+  v <- rep(1, length(DocMat) )
+  d <- data.frame(word = DocMat,freq=v)
+  
+  #DocMat <- as.factor(as.matrix(pentagram.tdm$dimnames$Terms))
+  
+  #v <- sort(summary(DocMat),decreasing=TRUE)
+  #d <- data.frame(word = names(v),freq=v)
   #print(head(d, n=20))
   
   rownames(d) <- 1: nrow(d)
@@ -470,6 +523,14 @@ CreateNgrams <-  function() {
   
 }
 
+# samp_size
+sample_txt_size <- 0
+setTextSampleSize(sample_txt_size)
+
+setSourceText("none")
+checktoCreate <- FALSE
+
+g_Source <- getSourceText()
 
 
 # Define server logic required to draw a histogram
@@ -485,7 +546,7 @@ shinyServer(function(input, output) {
     #print(inptxt)
     
     if (wordcount(inptxt)>= 5){
-      output$text2 <- renderPrint({ "Words exceeding the limit, Kindly give words less than or equal to 3 in the text"})
+      output$text2 <- renderPrint({ "Words exceeding the limit, Kindly give words less than or equal to 4 in the text"})
       return (NULL)
     }
     
@@ -528,7 +589,7 @@ shinyServer(function(input, output) {
     
   }
   # predict function to predict the text
-  predict_ngram <- function(size, text, source="blogs") {
+  predict_ngram <- function(text, source="blogs") {
  
     inptxt <- tolower(text)  
     #print(text)
@@ -572,42 +633,17 @@ shinyServer(function(input, output) {
       }
       if (wordcount(text)== 2){
         #check in trigram table
-        splitword <- strsplit(inptxt, " ")
-        firstword <- splitword[[1]][1]
-        secondword <- splitword[[1]][2]
-        if (grepl("\\*",firstword)){
-          readtable <- readUnigram()
-          text <- strsplit(text, " ")[[1]][1]
-        }
-        else if ( grepl("\\*", secondword)){
-          readtable <- readUnigram()
-          text <- strsplit(text, " ")[[1]][2]
-          
+        if (grepl("\\*",inptxt)){
+          readtable <- readBigram()
         }
         else {
           readtable <-readTrigram()
         }
       }
       if (wordcount(text)== 3){
-        splitword <- strsplit(inptxt, " ")
-        firstword <- splitword[[1]][1]
-        secondword <- splitword[[1]][2]
-        thirdword  <- splitword[[1]][3]
-        if (grepl("\\*",firstword)){
-          
-          readtable <- readUnigram()
-          text <- strsplit(text, " ")[[1]][1]
-          
-        }
-        else if ( grepl("\\*", secondword)){
-          readtable <- readUnigram()
-          text <- strsplit(text, " ")[[1]][2]
-          
-        }
-        else if ( grepl("\\*", thirdword)){
-          readtable <- readUnigram()
-          text <- strsplit(text, " ")[[1]][3]
-          
+ 
+        if (grepl("\\*",inptxt)){
+          readtable <- readTrigram()
         }
         else {
           readtable <- readQuadgram()
@@ -615,28 +651,9 @@ shinyServer(function(input, output) {
         }
       }
     if (wordcount(text)== 4){
-      splitword <- strsplit(inptxt, " ")
-      firstword <- splitword[[1]][1]
-      secondword <- splitword[[1]][2]
-      thirdword  <- splitword[[1]][3]
-      fourthword  <- splitword[[1]][4]
-      
-      if (grepl("\\*",firstword)){
-        readtable <- readUnigram()
-        text <- strsplit(text, " ")[[1]][1]
-      }
-      else if ( grepl("\\*", secondword)){
-        readtable <- readUnigram()
-        text <- strsplit(text, " ")[[1]][2]
-      }
-      else if ( grepl("\\*", thirdword)){
-        readtable <- readUnigram()
-        text <- strsplit(text, " ")[[1]][3]
-      }
-      else if ( grepl("\\*", fourthword)){
-        readtable <-readUnigram()
-        text <- strsplit(text, " ")[[1]][4]
-        
+
+      if (grepl("\\*",inptxt)){
+        readtable <- readQuadgram()
       }
       else {
         readtable <-readPentagram()
@@ -664,30 +681,34 @@ shinyServer(function(input, output) {
 }
   
   output$Out_Plot <- renderPlot ({
-    
+   
     output$text1<- renderText({NULL})
     output$text2<- renderText({NULL})
+    output$text3 <- renderText({NULL})
+    output$text4 <- renderText({NULL})
+    output$Out_Table3 <- renderTable({NULL})
 
-    samp_size <- input$samp_size
+    #samp_size <- input$samp_size
     text_type <- input$text_type
     text_pred  <- input$inptext
     
     currentSet <- reactive({
-      setSource(input$samp_size, input$text_type)
-      
+       checktoCreate <-  setSource(input$text_type)
     })
     
-    currentNgrams <- reactive({ 
-      CreateNgrams()
+    checktoCreate <- currentSet()
+    
+    currentSetNgrams <- reactive({
+        CreateNgrams()
     })
-    currentSet()
-    currentNgrams()
     
-    
+    if (checktoCreate == TRUE){
+      currentSetNgrams()
+    }
     
     
     currentObs <- reactive({
-        ptext <- predict_ngram(input$samp_size, input$inptext, input$text_type)
+        ptext <- predict_ngram(input$inptext, input$text_type)
     })
     ptext <- currentObs()
 
@@ -699,11 +720,22 @@ shinyServer(function(input, output) {
   
     ptext
     t <- as.data.frame(ptext)
+    
     t$word <- factor(t$word, levels=t$word[order(t$freq, decreasing =TRUE) ])
     t$word_predicted <- word(t$word, -1)
-    output$Out_Table <- renderTable({t})
-  
-    
+    if (nrow(t)== 1)
+    {
+      output$text3     <- renderText({"Suggested Word:"})  
+      output$Out_Table <- renderTable({t[, -2]})
+    }
+    else
+    {
+      output$text3     <- renderText({"Suggested Word:"})  
+      output$Out_Table <- renderTable({t[1,-2]})
+      output$text4     <- renderText({"Optional Words to Explore:"})  
+      output$Out_Table3 <- renderTable({t[-1,-2]})
+    }
+
   
     words_pred <- getPredictedCount()
     words_comp <- getCompletedCount()
@@ -712,7 +744,7 @@ shinyServer(function(input, output) {
    
  
      ggplot(t, aes(x=(word), y=freq))+geom_bar(stat = "identity")+
-        ggtitle("Predicted words with frequency")+
+        ggtitle("Predicted words")+
         theme(axis.text.x=element_text(angle=90,hjust=1))
     
   })
